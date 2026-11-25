@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>드럼 악보 캡처</title>
+<style>
+:root{--bg:#f6f5f1;--paper:#fff;--ink:#16161a;--mute:#6b6a66;--line:#dcdad3;--acc:#d7261e;--acc2:#1d4ed8}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+header{background:var(--ink);color:#fff;padding:16px max(4vw,14px);display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between}
+.proj{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.proj button{background:transparent;color:#fff;border-color:#5d5c58;min-height:40px;font-size:14px}
+.proj button.hl{background:#fff;color:var(--ink);border-color:#fff}
+.pname{font-size:14px;color:#c9c8c2;margin-right:6px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pname.dirty::after{content:" · 저장 안 됨";color:#ffb4ae}
+header h1{margin:0;font-size:26px;line-height:1.1}
+header p{margin:4px 0 0;color:#c9c8c2;font-size:15px}
+.layout{max-width:1400px;margin:0 auto;padding:16px max(3vw,12px) 80px;display:grid;gap:18px}
+.playerCol{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:6px;align-self:start}
+@media(min-width:1000px){.layout{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}.playerCol{top:10px}}
+.vbox{position:relative;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden}
+.vbox iframe,.vbox video{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vbox video{object-fit:contain}
+.vbox .ph{position:absolute;inset:0;display:grid;place-items:center;color:#8a8984;font-size:15px;text-align:center;padding:20px}
+@media(max-width:999px){.vbox{max-height:42vh;aspect-ratio:auto;height:min(56.25vw,42vh)}}
+.shield{position:absolute;inset:0;z-index:2;cursor:pointer}
+.seek{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:14px;font-variant-numeric:tabular-nums;color:var(--mute)}
+.seek input{flex:1;height:28px;accent-color:var(--acc)}
+.modal{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px}
+.mbox{background:#fff;border-radius:12px;padding:16px;width:min(1200px,100%);max-height:100%;overflow:auto}
+.edwrap{margin-top:12px;background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 0 0/16px 16px;border:1px solid var(--line);border-radius:6px;touch-action:none}
+.vwimg{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px;display:grid;place-items:center;min-height:120px}
+.vwimg img{max-width:100%;max-height:65vh;display:block}
+.cap img{cursor:zoom-in}
+#edC{display:block;width:100%;height:auto;cursor:crosshair}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.ctrl .rate{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:2px}
+.ctrl .rate button{border:0;min-width:40px;font-size:20px}
+.ctrl output{min-width:4.2em;text-align:center;font-weight:700;font-variant-numeric:tabular-nums;font-size:17px}
+.presets{display:flex;flex-wrap:wrap;gap:4px}
+.presets button{min-height:36px;padding:0 10px;font-size:14px;border-color:var(--line)}
+.presets button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.keys{font-size:13px;color:var(--mute);margin:8px 0 0}
+kbd{font:12px/1 system-ui;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:2px 5px;background:#fff}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.card h2{margin:0 0 4px;font-size:19px;display:flex;gap:10px;align-items:center}
+.num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--acc);color:#fff;font-size:15px;flex:none}
+.hint{color:var(--mute);font-size:14px;margin:4px 0 12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+input[type=text],select{font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+input[type=text]{flex:1 1 240px}
+button,.btn{font:inherit;font-size:15px;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button.pri{background:var(--ink);color:#fff}
+button.rec{background:var(--acc);border-color:var(--acc);color:#fff}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--acc2);outline-offset:2px}
+label.opt{display:flex;align-items:center;gap:8px;font-size:15px}
+details{font-size:14px;color:var(--mute);margin-top:8px}
+details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
+.warn{background:#fff4e5;border:1px solid #f3c58b;color:#7a4a00;border-radius:8px;padding:10px 12px;font-size:14px;margin-top:10px}
+.stage{position:relative;background:#111;border-radius:8px;overflow:hidden;margin:12px 0;touch-action:none}
+#preview{display:block;width:100%;height:auto;cursor:crosshair}
+.crop{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 18px;background:#f1f0ec;border-radius:8px;padding:10px 14px}
+.crop label{display:grid;grid-template-columns:3.5em minmax(0,1fr) 3.5em;align-items:center;gap:8px;font-size:15px}
+.crop input{width:100%;height:32px;accent-color:var(--acc)}
+.crop output{font-variant-numeric:tabular-nums;text-align:right;font-size:14px;color:var(--mute)}
+.status{font-size:14px;color:var(--mute);min-height:1.5em}
+.status b{color:var(--acc)}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:0;background:var(--acc)}
+#list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.cap{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fafaf8}
+.cap img{display:block;width:100%;background:#fff}
+.cap .meta{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 4px 10px;font-size:13px;color:var(--mute)}
+.cap button{min-height:34px;padding:0 9px;font-size:14px;border-color:var(--line)}
+.empty{color:var(--mute);font-size:15px;padding:18px;text-align:center;border:1px dashed var(--line);border-radius:8px}
+#pages{display:flex;flex-direction:column;align-items:center;gap:18px;margin-top:16px}
+#pages canvas{width:min(100%,794px);height:auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.15)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;z-index:20}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+@media print{
+  @page{size:A4;margin:0}
+  body{background:#fff}
+  header,.playerCol,.toast,.modal,main>*:not(#outCard),#outCard>*:not(#pages){display:none!important}
+  .layout{display:block;padding:0;max-width:none}
+  #outCard{border:0;padding:0;margin:0}
+  #pages{gap:0;margin:0}
+  #pages canvas{width:210mm;height:296mm;box-shadow:none;break-after:page;page-break-after:always}
+  #pages canvas:last-child{break-after:auto;page-break-after:auto}
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>드럼 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v1.6</span></h1>
+    <p>유튜브 드럼 커버를 앱에서 재생하면서 하단 악보만 모아 A4 악보로 만들어요.</p>
+  </div>
+  <div class="proj">
+    <span id="projName" class="pname">새 프로젝트</span>
+    <button id="pjNew">새로 만들기</button>
+    <button id="pjOpen">프로젝트 열기</button>
+    <button id="pjSave" class="hl">저장</button>
+    <button id="pjSaveAs">다른 이름으로 저장</button>
+    <button id="appQuit" hidden title="프로그램을 완전히 꺼요">앱 종료</button>
+    <input type="file" id="pjFile" accept=".drumsheet,.json,application/json" hidden>
+  </div>
+</header>
+<div class="layout">
+
+<aside class="playerCol">
+  <div class="vbox" id="vbox">
+    <div class="ph" id="ph">유튜브 링크를 넣고 <b>&nbsp;앱에서 재생&nbsp;</b>을 누르세요</div>
+    <div id="ytHost" hidden><div id="ytPlayer"></div></div>
+    <video id="fileV" playsinline hidden></video>
+    <div class="shield" id="shield" hidden title="클릭: 재생/멈춤"></div>
+  </div>
+  <div class="seek">
+    <span id="tCur">0:00</span>
+    <input type="range" id="seek" min="0" max="1000" value="0" disabled aria-label="재생 위치">
+    <span id="tDur">0:00</span>
+  </div>
+  <label class="opt" style="font-size:13px;color:var(--mute);margin-top:4px"><input type="checkbox" id="direct"> 유튜브 화면 직접 조작 (보통은 꺼 두세요. 켜면 유튜브 버튼이 캡처에 찍힐 수 있어요)</label>
+  <div class="ctrl">
+    <button id="pBack" disabled aria-label="5초 뒤로">« 5초</button>
+    <button class="pri" id="pPlay" disabled style="min-width:104px">▶ 재생</button>
+    <button id="pFwd" disabled aria-label="5초 앞으로">5초 »</button>
+    <div class="rate">
+      <button id="rDown" disabled aria-label="느리게">−</button>
+      <output id="rateV">1.00×</output>
+      <button id="rUp" disabled aria-label="빠르게">+</button>
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+  <p class="keys"><kbd>Space</kbd> 재생/멈춤 · <kbd>←</kbd><kbd>→</kbd> 5초 이동 · <kbd>-</kbd><kbd>+</kbd> 빠르기 0.05씩 · <kbd>0</kbd> 1배속 <span style="opacity:.8">(플레이어 밖을 한 번 클릭한 뒤 사용)</span></p>
+  <div class="warn" id="ytWarn" hidden></div>
+</aside>
+
+<main>
+<section class="card">
+  <h2><span class="num">1</span>영상 열기</h2>
+  <div class="row" style="margin-top:8px">
+    <input type="text" id="ytUrl" placeholder="https://youtu.be/..." autocomplete="off">
+    <button class="pri" id="ytLoad">앱에서 재생</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <label class="btn" for="fileIn">영상 파일 열기</label>
+    <input type="file" id="fileIn" accept="video/*" hidden>
+    <span style="font-size:13px;color:var(--mute)">내려받은 영상이 있으면 파일로도 돼요.</span>
+  </div>
+  <div class="warn" id="fileWarn" hidden>
+    <b>지금은 HTML 파일을 직접 열어서 유튜브가 “오류 153”으로 재생을 막아요.</b><br>
+    이 창을 닫고, 같은 폴더의 <b>실행하기(Windows).bat</b> (Mac은 <b>실행하기(Mac).command</b>)를 더블클릭해서 여세요. 주소가 <code>http://localhost</code>로 시작하면 정상이에요.
+  </div>
+  <details id="fileHelp">
+    <summary>실행 파일이 안 열리거나 그래도 재생이 안 될 때</summary>
+    <p><b>Windows</b>: “Windows의 PC 보호” 창이 뜨면 <b>추가 정보 → 실행</b>을 누르세요. 검은 창은 앱이 켜져 있는 동안 열어 두어야 해요.</p>
+    <p><b>Mac</b>: “확인되지 않은 개발자” 경고가 뜨면 파일을 <b>우클릭 → 열기</b>로 여세요.</p>
+    <p>영상 주인이 외부 재생을 막아 둔 영상은 이 방법으로도 안 돼요. 그럴 땐 유튜브를 새 탭에서 열고 2단계의 <b>다른 탭 캡처</b>를 쓰세요(이때 빠르기 조절은 유튜브 탭에서).</p>
+  </details>
+</section>
+
+<section class="card">
+  <h2><span class="num">2</span>악보 영역 지정 & 캡처</h2>
+  <p class="hint" id="capHint">앱에서 재생 중이면 <b>앱 화면 캡처 연결</b>을 누르고 크롬 창에서 <b>“이 탭”</b>을 공유하세요. 플레이어 부분만 자동으로 잡혀요.</p>
+  <div class="row">
+    <button class="rec" id="btnSelf">● 앱 화면 캡처 연결</button>
+    <button id="btnTab">다른 탭 캡처</button>
+  </div>
+  <div id="srcPanel" hidden>
+    <div class="stage"><canvas id="preview"></canvas></div>
+    <div class="crop">
+      <label>위쪽 <input type="range" id="cT" min="0" max="98" step="0.5"><output id="cTv"></output></label>
+      <label>아래쪽 <input type="range" id="cB" min="2" max="100" step="0.5"><output id="cBv"></output></label>
+      <label>왼쪽 <input type="range" id="cL" min="0" max="98" step="0.5"><output id="cLv"></output></label>
+      <label>오른쪽 <input type="range" id="cR" min="2" max="100" step="0.5"><output id="cRv"></output></label>
+    </div>
+    <div class="row" style="margin:6px 0 12px">
+      <button id="cReset">기본값 (하단 32%)</button>
+      <span style="font-size:13px;color:var(--mute)">빨간 박스가 캡처 영역이에요. 드래그로도 지정돼요.</span>
+    </div>
+    <div class="row">
+      <button class="rec" id="btnAuto">● 자동 캡처 시작</button>
+      <button id="btnScan" hidden>영상 빠르게 분석</button>
+      <button id="btnSnap">지금 한 장 캡처</button>
+      <label class="opt">변화 감도
+        <input type="range" id="sens" min="3" max="30" value="10" style="width:120px">
+        <span id="sensV" style="font-size:13px;color:var(--mute)"></span>
+      </label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="opt"><input type="checkbox" id="skipRep" checked> 반복 구간(도돌이표)은 다시 찍지 않기</label>
+      <label class="opt">판정
+        <select id="repTh"><option value="0.3">엄격 (가사가 달라도 찍음 · 화질이 흔들리면 반복이 찍힐 수 있음)</option><option value="0.5" selected>보통 (음표가 같으면 반복으로 봄)</option><option value="0.65">느슨</option></select>
+      </label>
+    </div>
+    <p class="status" id="status"></p>
+    <div class="bar" id="barWrap" hidden><i id="bar"></i></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2><span class="num">3</span>캡처된 악보 <span id="capCount" style="color:var(--mute);font-size:15px;font-weight:400"></span></h2>
+  <p class="hint">인트로나 중복된 장은 ✕로 지우고, 순서는 ↑↓로 바꾸세요.</p>
+  <div id="list"><div class="empty">아직 캡처된 악보가 없어요.</div></div>
+  <div class="row" style="margin-top:12px"><button id="btnUndo" disabled>↶ 삭제 되돌리기</button><button id="btnClear">전부 지우기</button></div>
+</section>
+
+<section class="card" id="outCard">
+  <h2><span class="num">4</span>악보 만들기</h2>
+  <div class="row" style="margin-top:10px">
+    <input type="text" id="title" placeholder="곡 제목 (예: 터치드 - 하이라이트)">
+  </div>
+  <div class="row" style="margin-top:12px">
+    <label class="opt">배경 반전
+      <select id="optInv"><option value="auto">자동</option><option value="on">켜기</option><option value="off">끄기</option></select>
+    </label>
+    <label class="opt"><input type="checkbox" id="optClean" checked> 흑백 선명하게</label>
+    <label class="opt"><input type="checkbox" id="optTrim" checked> 여백 자르기</label>
+    <label class="opt" title="반복 기호(||: :||, 1. 2.)가 있는 악보에서 같은 줄이 두 번 찍힌 걸 한 번만 넣어요"><input type="checkbox" id="optDedup"> 똑같은 줄은 한 번만 (반복 기호 있는 악보용 · 켜면 3단계 목록에서 빠질 장이 흐리게 표시돼요)</label>
+    <label class="opt">한 줄 크기
+      <select id="optScale"><option value="100" selected>100%</option><option value="90">90%</option><option value="80">80%</option><option value="70">70%</option></select>
+    </label>
+    <label class="opt">줄 간격
+      <select id="optGap"><option value="20">좁게</option><option value="40" selected>보통</option><option value="70">넓게</option></select>
+    </label>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <button class="pri" id="btnBuild">악보 만들기</button>
+    <button id="btnPrint" disabled>인쇄 / PDF 저장</button>
+    <button id="btnPng" disabled>페이지 PNG 저장</button>
+  </div>
+  <div id="pages"></div>
+</section>
+</main>
+</div>
+<div class="modal" id="vw" hidden>
+  <div class="mbox">
+    <div class="row" style="justify-content:space-between">
+      <b id="vwTitle" style="font-size:17px"></b>
+      <button id="vwClose" aria-label="닫기">닫기 ✕</button>
+    </div>
+    <div class="vwimg"><img id="vwImg" alt="캡처된 악보"></div>
+    <div class="row" style="justify-content:space-between;margin-top:12px">
+      <button id="vwPrev" style="min-width:110px">◀ 이전</button>
+      <div class="row" style="gap:6px">
+        <button id="vwUndo" disabled>↶ 되돌리기</button>
+        <button id="vwErase">지우개</button>
+        <button id="vwDel" style="border-color:var(--acc);color:var(--acc)">삭제</button>
+      </div>
+      <button id="vwNext" style="min-width:110px">다음 ▶</button>
+    </div>
+    <p class="hint" style="margin:10px 0 0;text-align:center"><kbd>←</kbd><kbd>→</kbd> 이전/다음 · <kbd>Delete</kbd> 삭제 · <kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 닫기</p>
+  </div>
+</div>
+<div class="modal" id="ed" hidden>
+  <div class="mbox">
+    <div class="row" style="justify-content:space-between">
+      <b id="edTitle">지우개</b>
+      <div class="row" style="gap:6px">
+        <button id="edUndo">되돌리기</button>
+        <button id="edReset">원본으로</button>
+        <button id="edAll">이 지우기를 모든 장에 적용</button>
+        <button id="edCancel">취소</button>
+        <button class="pri" id="edDone">완료</button>
+      </div>
+    </div>
+    <p class="hint" style="margin:8px 0 0">악보 위에 찍힌 버튼·글자를 <b>드래그로 감싸면</b> 흰색으로 지워져요. 최종 악보와 같은 모습으로 보여요.</p>
+    <div class="edwrap"><canvas id="edC"></canvas></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+{
+const $ = id => document.getElementById(id);
+const toast = msg => { const t=$('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove('on'),2800); };
+const fmt = s => { s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+const setStatus = html => { $('status').innerHTML = html; };
+const fileV = $('fileV');
+const capV = document.createElement('video'); capV.muted=true; capV.playsInline=true;
+
+let pk=null;            // 플레이어 종류: 'yt' | 'file'
+let yt=null;
+let mode=null;          // 캡처 소스: 'self' | 'tab' | 'file'
+let src=null;           // 프레임을 읽을 video 요소
+let crop={x:0,y:.68,w:1,h:.32};
+let caps=[], seq=0, running=false, timer=null, prevSig=null, lastSig=null, stable=0, pageCanvases=[];
+
+if(location.protocol==='file:') $('fileWarn').hidden=false;
+
+/* ================= 플레이어 ================= */
+function parseYT(url){
+  url=(url||'').trim();
+  try{
+    const u=new URL(url);
+    if(u.hostname.includes('youtu.be')) return u.pathname.slice(1).split('/')[0];
+    if(u.searchParams.get('v')) return u.searchParams.get('v');
+    const m=u.pathname.match(/\/(embed|shorts|live)\/([\w-]{6,})/); if(m) return m[2];
+  }catch(e){}
+  return /^[\w-]{11}$/.test(url)?url:null;
+}
+let apiP=null;
+function loadAPI(){
+  if(window.YT&&YT.Player) return Promise.resolve();
+  if(apiP) return apiP;
+  apiP=new Promise((res,rej)=>{
+    window.onYouTubeIframeAPIReady=res;
+    const s=document.createElement('script'); s.src='https://www.youtube.com/iframe_api';
+    s.onerror=()=>{ apiP=null; rej(); }; document.head.appendChild(s);
+  });
+  return apiP;
+}
+function showBox(kind){
+  $('ph').hidden=true; $('ytHost').hidden=kind!=='yt'; fileV.hidden=kind!=='file';
+  pk=kind; ['pBack','pPlay','pFwd','rDown','rUp','seek'].forEach(k=>$(k).disabled=false);
+  $('shield').hidden=$('direct').checked;
+  $('presets').querySelectorAll('button').forEach(b=>b.disabled=false);
+}
+$('ytLoad').onclick = async () => {
+  const id=parseYT($('ytUrl').value);
+  if(!id){ toast('유튜브 링크를 확인해 주세요'); return; }
+  try{ await loadAPI(); }catch(e){ toast('유튜브 플레이어를 불러오지 못했어요. 인터넷 연결을 확인하세요.'); return; }
+  fileV.pause(); $('ytWarn').hidden=true;
+  if(mode==='file') resetSource();
+  showBox('yt');
+  if(yt&&yt.loadVideoById){ yt.cueVideoById(id); }
+  else{
+    const vars={rel:0,playsinline:1,modestbranding:1,controls:0,iv_load_policy:3,disablekb:1,fs:0,cc_load_policy:0};
+    if(location.protocol.startsWith('http')) vars.origin=location.origin;
+    yt=new YT.Player('ytPlayer',{width:'100%',height:'100%',videoId:id,playerVars:vars,events:{
+      onReady:()=>updRate(), onStateChange:updPlay, onPlaybackRateChange:updRate,
+      onError:e=>ytErr(e.data)
+    }});
+  }
+  fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent('https://www.youtube.com/watch?v='+id))
+    .then(r=>r.ok?r.json():null).then(j=>{ if(j&&j.title&&!$('title').value.trim()) $('title').value=j.title; }).catch(()=>{});
+};
+function ytErr(code){
+  const w=$('ytWarn'); w.hidden=false;
+  if(code===101||code===150) w.textContent='이 영상은 주인이 다른 사이트에서의 재생을 막아 두었어요. 유튜브를 새 탭에서 열고 2단계의 “다른 탭 캡처”를 써 주세요.';
+  else { w.textContent = location.protocol==='file:' ? '오류가 났어요. 1단계의 안내대로 “실행하기” 파일로 열어 주세요.' : '플레이어 오류('+code+')가 났어요. 1단계 아래 안내를 확인해 주세요.'; $('fileHelp').open=true; }
+}
+const P={
+  play(){ pk==='yt'?yt.playVideo():fileV.play(); },
+  pause(){ pk==='yt'?yt.pauseVideo():fileV.pause(); },
+  playing(){ return pk==='yt' ? (yt.getPlayerState&&yt.getPlayerState()===1) : !fileV.paused; },
+  time(){ return pk==='yt' ? yt.getCurrentTime() : fileV.currentTime; },
+  seek(t){ t=Math.max(0,t); pk==='yt' ? yt.seekTo(t,true) : (fileV.currentTime=t); },
+  rate(){ return pk==='yt' ? (yt.getPlaybackRate?yt.getPlaybackRate():1) : fileV.playbackRate; },
+  setRate(r){
+    r=Math.round(Math.min(2,Math.max(.25,r))*100)/100;
+    if(pk==='yt') yt.setPlaybackRate(r); else fileV.playbackRate=r;
+    updRate(); setTimeout(updRate,250);
+  }
+};
+const PRESETS=[.5,.75,1,1.25,1.5,2];
+$('presets').innerHTML=PRESETS.map(r=>`<button data-r="${r}" disabled>${r}×</button>`).join('');
+$('presets').onclick=e=>{ const b=e.target.closest('button'); if(b&&pk) P.setRate(+b.dataset.r); };
+function updRate(){
+  if(!pk) return; const r=P.rate();
+  $('rateV').textContent=r.toFixed(2)+'×';
+  $('presets').querySelectorAll('button').forEach(b=>b.classList.toggle('on',Math.abs(+b.dataset.r-r)<.001));
+}
+function updPlay(){ if(pk) $('pPlay').textContent = P.playing() ? '⏸ 멈춤' : '▶ 재생'; }
+fileV.addEventListener('play',updPlay); fileV.addEventListener('pause',updPlay); fileV.addEventListener('ratechange',updRate);
+const toggle=()=>{ if(!pk) return; P.playing()?P.pause():P.play(); };
+$('pPlay').onclick=toggle;
+$('shield').onclick=toggle;
+$('direct').onchange=()=>{ if(pk) $('shield').hidden=$('direct').checked; };
+/* 재생 위치 바 */
+let seeking=false;
+const dur=()=>{ try{ return pk==='yt' ? (yt.getDuration?yt.getDuration():0) : (fileV.duration||0); }catch(e){ return 0; } };
+$('seek').addEventListener('input',()=>{ seeking=true; const d=dur(); $('tCur').textContent=fmt(d*$('seek').value/1000); });
+$('seek').addEventListener('change',()=>{ const d=dur(); if(d) P.seek(d*$('seek').value/1000); seeking=false; });
+setInterval(()=>{
+  if(!pk) return;
+  try{
+    const d=dur(), t=P.time()||0;
+    $('tDur').textContent=fmt(d);
+    if(!seeking){ $('tCur').textContent=fmt(t); if(d) $('seek').value=Math.round(t/d*1000); }
+    updPlay();
+  }catch(e){}
+},250);
+$('pBack').onclick=()=>pk&&P.seek(P.time()-5);
+$('pFwd').onclick=()=>pk&&P.seek(P.time()+5);
+$('rDown').onclick=()=>pk&&P.setRate(P.rate()-.05);
+$('rUp').onclick=()=>pk&&P.setRate(P.rate()+.05);
+document.addEventListener('keydown',e=>{
+  if(!$('vw').hidden||!$('ed').hidden) return;
+  if(!pk||e.ctrlKey||e.metaKey||e.altKey) return;
+  const t=e.target; if(t.closest&&t.closest('input,select,textarea')) return;
+  const k=e.key;
+  if(k===' '){ e.preventDefault(); toggle(); }
+  else if(k==='ArrowLeft'){ e.preventDefault(); P.seek(P.time()-5); }
+  else if(k==='ArrowRight'){ e.preventDefault(); P.seek(P.time()+5); }
+  else if(k==='-'||k==='_'||k==='['){ P.setRate(P.rate()-.05); }
+  else if(k==='+'||k==='='||k===']'){ P.setRate(P.rate()+.05); }
+  else if(k==='0'){ P.setRate(1); }
+});
+
+/* ================= 캡처 소스 ================= */
+function resetSource(){
+  stopAuto();
+  if(capV.srcObject){ capV.srcObject.getTracks().forEach(t=>t.stop()); capV.srcObject=null; }
+  mode=null; src=null; $('srcPanel').hidden=true;
+}
+async function startCapture(self){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){ toast('이 브라우저는 화면 캡처를 지원하지 않아요. PC 크롬을 쓰거나 영상 파일을 여세요.'); return; }
+  if(self&&pk!=='yt'){ toast('먼저 1단계에서 “앱에서 재생”으로 영상을 띄워 주세요'); return; }
+  try{
+    const opt={video:{displaySurface:'browser',frameRate:{ideal:10,max:12}},audio:false};
+    if(self){ opt.preferCurrentTab=true; opt.selfBrowserSurface='include'; } else opt.selfBrowserSurface='exclude';
+    const s=await navigator.mediaDevices.getDisplayMedia(opt);
+    resetSource();
+    capV.srcObject=s; await capV.play();
+    s.getVideoTracks()[0].onended=()=>{ stopAuto(); setStatus('캡처 연결이 끝났어요.'); };
+    mode=self?'self':'tab'; src=capV; ready();
+  }catch(e){ if(e.name!=='NotAllowedError') toast('캡처 연결 실패: '+e.message); }
+}
+$('btnSelf').onclick=()=>startCapture(true);
+$('btnTab').onclick=()=>startCapture(false);
+
+$('fileIn').onchange = e => {
+  const f=e.target.files[0]; if(!f) return;
+  if(pk==='yt'&&yt&&yt.pauseVideo) yt.pauseVideo();
+  resetSource();
+  if(fileV.src) URL.revokeObjectURL(fileV.src);
+  fileV.src=URL.createObjectURL(f);
+  fileV.onloadedmetadata=()=>{ showBox('file'); fileV.currentTime=Math.min(10,fileV.duration/3); mode='file'; src=fileV; updRate(); updPlay(); ready(); };
+  $('title').value=f.name.replace(/\.[^.]+$/,'');
+  e.target.value='';
+};
+
+function ready(){
+  $('srcPanel').hidden=false;
+  $('btnScan').hidden = mode!=='file';
+  setStatus(mode==='file'
+    ? '빨간 박스를 악보에 맞춘 뒤 <b>영상 빠르게 분석</b>(재생 없이 훑기) 또는 <b>자동 캡처 시작</b>(재생하면서) 중 하나를 쓰세요.'
+    : (mode==='self' ? '빨간 박스를 악보에 맞추고 <b>자동 캡처 시작</b>을 누른 뒤 <b>▶ 재생</b>을 누르세요. 멈추기를 누르면 영상도 같이 멈춰요.' : '빨간 박스를 악보에 맞추고 <b>자동 캡처 시작</b>을 누른 뒤 유튜브 탭에서 영상을 재생하세요.'));
+  startPreview();
+}
+
+/* 캡처 기준 영역 (앱 화면 캡처면 플레이어 위치만) */
+function baseRect(){
+  const vw=src.videoWidth, vh=src.videoHeight;
+  if(mode==='self'){
+    const r=$('vbox').getBoundingClientRect(), sx=vw/innerWidth, sy=vh/innerHeight;
+    const x=Math.max(0,r.left*sx), y=Math.max(0,r.top*sy);
+    return {x,y,w:Math.max(1,Math.min(vw-x,r.width*sx)),h:Math.max(1,Math.min(vh-y,r.height*sy))};
+  }
+  return {x:0,y:0,w:vw,h:vh};
+}
+function cropPx(){
+  const b=baseRect();
+  return {x:Math.round(b.x+crop.x*b.w),y:Math.round(b.y+crop.y*b.h),w:Math.max(1,Math.round(crop.w*b.w)),h:Math.max(1,Math.round(crop.h*b.h))};
+}
+
+/* ================= 미리보기 + 영역 ================= */
+const pv=$('preview'), px=pv.getContext('2d');
+// 미리보기는 하나의 반복만 돌리고, 캡처 중에는 천천히(0.5초마다) 그려서 영상 재생에 부담을 덜어요
+let pvTimer=null;
+function startPreview(){ if(!pvTimer) previewLoop(); }
+function previewLoop(){
+  if(!mode){ pvTimer=null; return; }
+  if(!document.hidden && !$('srcPanel').hidden) drawPreview();
+  pvTimer=setTimeout(previewLoop, running ? 500 : 100);
+}
+function drawPreview(){
+  if(!mode||!src) return;
+  if(src.videoWidth){
+    const b=baseRect(), W=Math.min(960,Math.round(b.w)), H=Math.max(1,Math.round(W*b.h/b.w));
+    if(pv.width!==W||pv.height!==H){ pv.width=W; pv.height=H; }
+    px.drawImage(src,b.x,b.y,b.w,b.h,0,0,W,H);
+    const r={x:crop.x*W,y:crop.y*H,w:crop.w*W,h:crop.h*H};
+    px.fillStyle='rgba(0,0,0,.55)';
+    px.fillRect(0,0,W,r.y); px.fillRect(0,r.y+r.h,W,H-r.y-r.h);
+    px.fillRect(0,r.y,r.x,r.h); px.fillRect(r.x+r.w,r.y,W-r.x-r.w,r.h);
+    px.strokeStyle='#ff3b30'; px.lineWidth=Math.max(2,W/400); px.strokeRect(r.x,r.y,r.w,r.h);
+  }
+}
+let drag=null;
+const norm = e => { const b=pv.getBoundingClientRect(); return {x:Math.min(1,Math.max(0,(e.clientX-b.left)/b.width)), y:Math.min(1,Math.max(0,(e.clientY-b.top)/b.height))}; };
+pv.addEventListener('pointerdown',e=>{ drag=norm(e); pv.setPointerCapture(e.pointerId); });
+pv.addEventListener('pointermove',e=>{
+  if(!drag) return; const p=norm(e);
+  const c={x:Math.min(drag.x,p.x),y:Math.min(drag.y,p.y),w:Math.abs(p.x-drag.x),h:Math.abs(p.y-drag.y)};
+  if(c.w>.02&&c.h>.02){ crop=c; syncCrop(); drawPreview(); }
+});
+pv.addEventListener('pointerup',()=>{ if(drag){ drag=null; lastSig=null; saveCrop(); } });
+
+const DEF={x:0,y:.68,w:1,h:.32};
+const r1=v=>Math.round(v*1000)/10;
+function syncCrop(){
+  const v={cT:crop.y,cB:crop.y+crop.h,cL:crop.x,cR:crop.x+crop.w};
+  for(const k in v){ $(k).value=r1(v[k]); $(k+'v').textContent=r1(v[k])+'%'; }
+}
+function saveCrop(){ try{ localStorage.setItem('dsc-crop',JSON.stringify(crop)); }catch(e){} }
+function fromSliders(changed){
+  let t=+$('cT').value, b=+$('cB').value, l=+$('cL').value, r=+$('cR').value;
+  if(b<t+2){ if(changed==='cT') t=b-2; else b=t+2; }
+  if(r<l+2){ if(changed==='cL') l=r-2; else r=l+2; }
+  crop={x:l/100,y:t/100,w:(r-l)/100,h:(b-t)/100};
+  syncCrop(); lastSig=null; saveCrop();
+}
+['cT','cB','cL','cR'].forEach(k=>$(k).addEventListener('input',()=>fromSliders(k)));
+$('cReset').onclick=()=>{ crop={...DEF}; syncCrop(); lastSig=null; saveCrop(); };
+try{ const s=JSON.parse(localStorage.getItem('dsc-crop')); if(s&&s.w>0&&s.h>0) crop=s; }catch(e){}
+syncCrop();
+
+/* ================= 변화 감지 ================= */
+const SW=96, SH=20;
+const sc=document.createElement('canvas'); sc.width=SW; sc.height=SH;
+const sx=sc.getContext('2d',{willReadFrequently:true});
+function sig(){
+  const r=cropPx(); sx.drawImage(src,r.x,r.y,r.w,r.h,0,0,SW,SH);
+  const d=sx.getImageData(0,0,SW,SH).data, a=new Uint8Array(SW*SH);
+  for(let i=0;i<a.length;i++) a[i]=(d[i*4]*.299+d[i*4+1]*.587+d[i*4+2]*.114)|0;
+  return a;
+}
+const diff=(a,b)=>{ let s=0; for(let i=0;i<a.length;i++) s+=Math.abs(a[i]-b[i]); return s/a.length; };
+function spread(a){ let m=0; for(const v of a) m+=v; m/=a.length; let s=0; for(const v of a) s+=(v-m)**2; return Math.sqrt(s/a.length); }
+function grab(){ const r=cropPx(); const c=document.createElement('canvas'); c.width=r.w; c.height=r.h; c.getContext('2d').drawImage(src,r.x,r.y,r.w,r.h,0,0,r.w,r.h); return c; }
+/* 반복 구간 판정용 지문
+   - 작게 줄여서 비교 → 유튜브 화질이 바뀌어 흐려져도 같은 악보로 봐요
+   - 색 있는 부분(파란 재생 커서, 분홍 Next 상자 등)은 그 둘레 상자째 비교에서 빼요
+   - 칸별로 비교해서 가장 많이 다른 칸이 점수 → 한 마디만 달라도 다른 악보로 알아봐요 */
+let skipped=0;
+const RW=160, RH=24, CW=16, CH=6, KFLOOR=800;
+const rm=document.createElement('canvas'); rm.width=RW*3; rm.height=RH*3;
+const rmx=rm.getContext('2d'); rmx.imageSmoothingQuality='high';
+const rc=document.createElement('canvas'); rc.width=RW; rc.height=RH;
+const rx=rc.getContext('2d',{willReadFrequently:true}); rx.imageSmoothingQuality='high';
+function repSig(cv){
+  rmx.fillStyle='#fff'; rmx.fillRect(0,0,rm.width,rm.height); rmx.drawImage(cv,0,0,rm.width,rm.height);
+  rx.drawImage(rm,0,0,RW,RH);
+  const d=rx.getImageData(0,0,RW,RH).data, N=RW*RH, g=new Float32Array(N), col=new Uint8Array(N), mask=new Uint8Array(N);
+  let sum=0;
+  for(let i=0;i<N;i++){ const R=d[i*4],G=d[i*4+1],B=d[i*4+2], mx=Math.max(R,G,B), mn=Math.min(R,G,B); g[i]=R*.299+G*.587+B*.114; sum+=g[i]; if(mx-mn>30&&mx>90) col[i]=1; }
+  if(sum/N<110) for(let i=0;i<N;i++) g[i]=255-g[i]; // 어두운 배경 악보는 뒤집어서 비교
+  const seen=new Uint8Array(N), st=[];
+  for(let i=0;i<N;i++){
+    if(!col[i]||seen[i]) continue;
+    let x0=RW,y0=RH,x1=0,y1=0,cnt=0; st.push(i); seen[i]=1;
+    while(st.length){ const k=st.pop(), X=k%RW, Y=(k/RW)|0; cnt++;
+      if(X<x0)x0=X; if(X>x1)x1=X; if(Y<y0)y0=Y; if(Y>y1)y1=Y;
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const a=X+dx,b=Y+dy; if(a<0||b<0||a>=RW||b>=RH) continue; const j=b*RW+a; if(col[j]&&!seen[j]){ seen[j]=1; st.push(j); } } }
+    if(cnt<3) continue;
+    for(let y=Math.max(0,y0-1);y<=Math.min(RH-1,y1+1);y++) for(let x=Math.max(0,x0-1);x<=Math.min(RW-1,x1+1);x++) mask[y*RW+x]=1;
+  }
+  return {g,mask};
+}
+function capRepSig(c){ if(!c.rsig) c.rsig=repSig(c.canvas); return c.rsig; }
+// 0 = 똑같음 … 1 이상 = 확실히 다름 (가장 많이 다른 칸 기준)
+function inkDiff(a,b){
+  let worst=0;
+  for(let cy=0;cy<RH;cy+=CH) for(let cx=0;cx<RW;cx+=CW){
+    let dd=0, ink=0;
+    for(let y=cy;y<Math.min(RH,cy+CH);y++) for(let x=cx;x<Math.min(RW,cx+CW);x++){
+      const i=y*RW+x; if(a.mask[i]||b.mask[i]) continue;
+      const A=Math.min(255,a.g[i]), B=Math.min(255,b.g[i]);
+      dd+=Math.abs(A-B); ink+=(255-A)+(255-B);
+    }
+    const r=2*dd/Math.max(ink,KFLOOR); if(r>worst) worst=r;
+  }
+  return worst;
+}
+function nearest(sigv,skipIdx){
+  let best=-1, bd=1e9;
+  caps.forEach((c,i)=>{ if(i===skipIdx) return; const d=inkDiff(capRepSig(c),sigv); if(d<bd){ bd=d; best=i; } });
+  return {i:best,d:bd};
+}
+function step(t,need){
+  if(!src||!src.videoWidth) return;
+  const s=sig(), th=+$('sens').value, sth=Math.max(2.5,th*.3);
+  stable = prevSig && diff(s,prevSig)<sth ? stable+1 : 0;
+  prevSig=s;
+  if(stable>=need && spread(s)>6 && (!lastSig||diff(s,lastSig)>th)){
+    const g=grab();
+    if($('skipRep').checked){
+      const r=repSig(g), lim=+$('repTh').value, nb=nearest(r,-1);
+      if(nb.i>=0 && nb.d<lim){ skipped++; lastSig=s; toast('반복 구간이라 건너뛰었어요 (#'+(nb.i+1)+'과 같음 · 차이 '+nb.d.toFixed(3)+')'); return; }
+    }
+    addCap(g,t); lastSig=s;
+  }
+}
+$('sens').oninput=()=>{ const v=+$('sens').value; $('sensV').textContent = v<=6?'민감':v>=18?'둔감':'보통'; };
+$('sens').oninput();
+
+const curTime=()=>{ try{ return pk?P.time():null; }catch(e){ return null; } };
+$('btnAuto').onclick=()=>{
+  if(running){ stopAuto(); pauseVideo(); return; }
+  running=true; prevSig=null; stable=0; lastSig=null; skipped=0;
+  $('btnAuto').textContent='■ 캡처 멈추기'; $('btnScan').disabled=true;
+  // 자동 재생은 하지 않아요 — 준비되면 직접 ▶ 재생을 눌러 주세요
+  if(mode==='tab') toast('유튜브 탭에서 영상을 재생해 주세요');
+  else toast('캡처 준비 완료 · ▶ 재생을 눌러 영상을 시작하세요');
+  timer=setInterval(()=>{
+    if(mode!=='tab' && pk && !P.playing()){ stable=0; prevSig=null; setStatus('<b>⏸ 일시정지</b> · 멈춘 동안은 캡처하지 않아요 (유튜브 추천 영상 화면 방지) · '+caps.length+'장 저장됨'); return; }
+    const t = mode==='tab' ? null : curTime();
+    step(t,2);
+    setStatus('<b>● 캡처 중</b>'+(t!=null?' · '+fmt(t):'')+' · '+caps.length+'장 저장됨'+(skipped?' · 반복 '+skipped+'번 건너뜀':'')+(mode==='tab'?' — 유튜브 탭에서 재생하세요':''));
+  },250);
+};
+function pauseVideo(){
+  try{ if(mode==='self'&&pk==='yt') P.pause(); else if(mode==='file') fileV.pause(); }catch(e){}
+}
+function stopAuto(){
+  if(!running) return;
+  running=false; clearInterval(timer); timer=null;
+  $('btnAuto').textContent='● 자동 캡처 시작'; $('btnScan').disabled=false; $('btnScan').textContent='영상 빠르게 분석';
+  $('barWrap').hidden=true;
+  setStatus('멈췄어요 · '+caps.length+'장 저장됨'+(skipped?' · 반복 구간 '+skipped+'번 건너뜀':''));
+}
+function seek(t){ return new Promise(res=>{ const h=()=>{ fileV.removeEventListener('seeked',h); clearTimeout(to); res(); }; const to=setTimeout(h,4000); fileV.addEventListener('seeked',h); fileV.currentTime=t; }); }
+$('btnScan').onclick=async()=>{
+  if(running){ stopAuto(); return; }
+  running=true; prevSig=null; stable=0; lastSig=null; skipped=0; fileV.pause();
+  $('btnScan').textContent='■ 분석 멈추기'; $('btnAuto').disabled=true; $('barWrap').hidden=false;
+  const dur=fileV.duration;
+  for(let t=0;t<dur&&running;t+=.5){
+    await seek(t); step(t,1);
+    $('bar').style.width=(t/dur*100)+'%';
+    setStatus('<b>분석 중</b> '+fmt(t)+' / '+fmt(dur)+' · '+caps.length+'장 저장됨'+(skipped?' · 반복 '+skipped+'번 건너뜀':''));
+  }
+  $('btnAuto').disabled=false;
+  if(running){ stopAuto(); setStatus('분석 완료 · '+caps.length+'장 저장됨'+(skipped?' · 반복 구간 '+skipped+'번 건너뜀':'')); }
+};
+$('btnSnap').onclick=()=>{
+  if(!src||!src.videoWidth){ toast('먼저 캡처를 연결하세요'); return; }
+  addCap(grab(), mode==='tab'?null:curTime()); lastSig=sig();
+};
+
+/* ================= 캡처 목록 ================= */
+function smallJpeg(cv){
+  const W=Math.min(900,cv.width), H=Math.max(1,Math.round(cv.height*W/cv.width));
+  if(W===cv.width) return cv.toDataURL('image/jpeg',.8);
+  const t=document.createElement('canvas'); t.width=W; t.height=H; const x=t.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(cv,0,0,W,H);
+  return t.toDataURL('image/jpeg',.8);
+}
+function addCap(canvas,t){
+  const c={id:++seq,canvas,t,rects:[],thumb:smallJpeg(canvas)};
+  caps.push(c);
+  if($('optDedup').checked || caps.length===1){ renderList(); return; }
+  $('list').insertAdjacentHTML('beforeend',cardHTML(c,caps.length-1,-1));
+  $('capCount').textContent=caps.length+'장'; markDirty();
+}
+/* 똑같은 줄 찾기: 처리된 모습 기준으로 비교 */
+const DS=document.createElement('canvas'); DS.width=160; DS.height=24;
+const dsx=DS.getContext('2d',{willReadFrequently:true}); dsx.imageSmoothingQuality='high';
+function capSig(c){
+  if(!c.sig){
+    const im=processCap(c.canvas,c.rects,true);
+    dsx.fillStyle='#fff'; dsx.fillRect(0,0,160,24); dsx.drawImage(im,0,0,160,24);
+    const d=dsx.getImageData(0,0,160,24).data, a=new Uint8Array(160*24);
+    for(let i=0;i<a.length;i++) a[i]=d[i*4];
+    c.sig=a;
+  }
+  return c.sig;
+}
+const DUP_TH=2.6;
+function dupMap(){
+  const s=caps.map(capSig);
+  return s.map((a,i)=>{ for(let j=0;j<i;j++) if(diff(a,s[j])<DUP_TH) return j; return -1; });
+}
+['optInv','optClean','optTrim'].forEach(k=>$(k).addEventListener('change',()=>{ caps.forEach(c=>c.sig=null); renderList(); }));
+$('optDedup').addEventListener('change',()=>renderList());
+function refreshThumb(c){ c.sig=null; c.rsig=null; c.thumb = smallJpeg(c.rects.length ? processCap(c.canvas,c.rects,false) : c.canvas); }
+function renderList(){
+  markDirty();
+  $('capCount').textContent = caps.length ? caps.length+'장' : '';
+  if(!caps.length){ $('list').innerHTML='<div class="empty">아직 캡처된 악보가 없어요.</div>'; return; }
+  const dm = $('optDedup').checked ? dupMap() : [];
+  $('list').innerHTML = caps.map((c,i)=>cardHTML(c,i,dm[i]??-1)).join('');
+}
+function cardHTML(c,i,dup){
+  return `<div class="cap"${dup>=0?' style="opacity:.45"':''}><img src="${c.thumb}" data-i="${i}" alt="악보 ${i+1} 크게 보기" title="눌러서 크게 보기" decoding="async"><div class="meta"><span>#${i+1}${c.t!=null?' · '+fmt(c.t):''}${dup>=0?` · <b style="color:var(--acc)">≈#${dup+1}과 같음</b>`:''}</span><span class="row" style="gap:4px"><button data-a="erase" data-i="${i}">지우개${c.rects.length?' ('+c.rects.length+')':''}</button><button data-a="up" data-i="${i}" aria-label="위로">↑</button><button data-a="down" data-i="${i}" aria-label="아래로">↓</button><button data-a="del" data-i="${i}" aria-label="삭제">✕</button></span></div></div>`;
+}
+/* ================= 크게 보기 팝업 ================= */
+let vIdx=-1;
+function showV(i){
+  if(!caps.length){ closeV(); return; }
+  vIdx=Math.max(0,Math.min(caps.length-1,i));
+  const c=caps[vIdx];
+  $('vwImg').src=(c.rects.length ? processCap(c.canvas,c.rects,false) : c.canvas).toDataURL('image/jpeg',.92);
+  $('vwTitle').textContent=`#${vIdx+1} / ${caps.length}`+(c.t!=null?' · '+fmt(c.t):'');
+  $('vwPrev').disabled=vIdx===0; $('vwNext').disabled=vIdx===caps.length-1;
+  $('vwDel').disabled=$('vwErase').disabled=false;
+  $('vw').hidden=false;
+}
+function closeV(){ $('vw').hidden=true; vIdx=-1; }
+$('vwClose').onclick=closeV;
+$('vw').addEventListener('click',e=>{ if(e.target===$('vw')) closeV(); });
+$('vwPrev').onclick=()=>showV(vIdx-1);
+$('vwNext').onclick=()=>showV(vIdx+1);
+/* 삭제 기록 (되돌리기용) */
+const trash=[];
+function updUndo(){ const n=trash.length; $('vwUndo').disabled=$('btnUndo').disabled=!n; $('btnUndo').textContent=n?`↶ 삭제 되돌리기 (${n})`:'↶ 삭제 되돌리기'; }
+function delCaps(idxs){
+  const items=idxs.slice().sort((a,b)=>a-b).map(i=>({i,c:caps[i]}));
+  for(let k=items.length-1;k>=0;k--) caps.splice(items[k].i,1);
+  trash.push(items); if(trash.length>50) trash.shift();
+  lastSig=null; renderList(); updUndo();
+}
+function undoDel(){
+  const items=trash.pop(); if(!items){ toast('되돌릴 삭제가 없어요'); return -1; }
+  items.forEach(({i,c})=>caps.splice(Math.min(i,caps.length),0,c));
+  renderList(); updUndo();
+  toast(items.length>1?items.length+'장을 되살렸어요':'#'+(items[0].i+1)+'을 되살렸어요');
+  return items[0].i;
+}
+$('vwDel').onclick=()=>{
+  if(vIdx<0) return;
+  delCaps([vIdx]);
+  if(!caps.length){ $('vwImg').removeAttribute('src'); $('vwTitle').textContent='모두 삭제됨 — 되돌리기를 누르면 살아나요'; $('vwPrev').disabled=$('vwNext').disabled=$('vwDel').disabled=$('vwErase').disabled=true; return; }
+  showV(Math.min(vIdx,caps.length-1)); toast('삭제했어요 · 되돌리기로 살릴 수 있어요');
+};
+$('vwUndo').onclick=()=>{ const i=undoDel(); if(i>=0){ $('vwDel').disabled=$('vwErase').disabled=false; showV(i); } };
+$('btnUndo').onclick=()=>undoDel();
+document.addEventListener('keydown',e=>{
+  if(!$('ed').hidden) return;
+  if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){
+    const t=e.target; if(t.closest&&t.closest('input[type=text],textarea')) return;
+    if(!trash.length) return;
+    e.preventDefault(); $('vw').hidden ? undoDel() : $('vwUndo').click();
+  }
+});
+$('vwErase').onclick=()=>{ if(vIdx>=0) openEditor(vIdx); };
+document.addEventListener('keydown',e=>{
+  if($('vw').hidden||!$('ed').hidden) return;
+  if(e.key==='ArrowLeft'){ e.preventDefault(); showV(vIdx-1); }
+  else if(e.key==='ArrowRight'){ e.preventDefault(); showV(vIdx+1); }
+  else if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); $('vwDel').click(); }
+  else if(e.key==='Escape'){ closeV(); }
+});
+
+$('list').onclick=e=>{
+  const im=e.target.closest('.cap img');
+  if(im){ showV(+im.dataset.i); return; }
+  const b=e.target.closest('button'); if(!b) return;
+  const i=+b.dataset.i, a=b.dataset.a;
+  if(a==='erase'){ openEditor(i); return; }
+  if(a==='del'){ delCaps([i]); toast('삭제했어요 · 되돌리기로 살릴 수 있어요'); return; }
+  if(a==='up'&&i>0) [caps[i-1],caps[i]]=[caps[i],caps[i-1]];
+  if(a==='down'&&i<caps.length-1) [caps[i+1],caps[i]]=[caps[i],caps[i+1]];
+  renderList();
+};
+let clearArmed=0;
+$('btnClear').onclick=()=>{
+  if(!caps.length) return;
+  if(Date.now()-clearArmed<3000){ clearArmed=0; delCaps(caps.map((c,i)=>i)); toast('모두 지웠어요 · 되돌리기로 살릴 수 있어요'); }
+  else{ clearArmed=Date.now(); toast('한 번 더 누르면 모두 지워져요'); }
+};
+
+/* ================= 악보 만들기 ================= */
+/* ================= 지우개 ================= */
+let edIdx=-1, edRects=[], edBase=null, edDrag=null;
+const edC=$('edC'), edX=edC.getContext('2d');
+function openEditor(i){
+  edIdx=i; edRects=caps[i].rects.map(r=>({...r}));
+  edBase=processCap(caps[i].canvas,[],false);
+  edC.width=edBase.width; edC.height=edBase.height;
+  $('edTitle').textContent='지우개 — #'+(i+1);
+  $('ed').hidden=false; drawEd();
+}
+function drawEd(tmp){
+  const W=edC.width, H=edC.height;
+  edX.drawImage(edBase,0,0); edX.fillStyle='#fff';
+  edRects.forEach(r=>edX.fillRect(r.x*W,r.y*H,r.w*W,r.h*H));
+  if(tmp){ edX.fillStyle='rgba(215,38,30,.3)'; edX.fillRect(tmp.x*W,tmp.y*H,tmp.w*W,tmp.h*H); edX.strokeStyle='#d7261e'; edX.lineWidth=2; edX.strokeRect(tmp.x*W,tmp.y*H,tmp.w*W,tmp.h*H); }
+}
+const edNorm=e=>{ const b=edC.getBoundingClientRect(); return {x:Math.min(1,Math.max(0,(e.clientX-b.left)/b.width)),y:Math.min(1,Math.max(0,(e.clientY-b.top)/b.height))}; };
+const edBox=(a,b)=>({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(b.x-a.x),h:Math.abs(b.y-a.y)});
+edC.addEventListener('pointerdown',e=>{ edDrag=edNorm(e); edC.setPointerCapture(e.pointerId); });
+edC.addEventListener('pointermove',e=>{ if(edDrag) drawEd(edBox(edDrag,edNorm(e))); });
+edC.addEventListener('pointerup',e=>{ if(!edDrag) return; const r=edBox(edDrag,edNorm(e)); edDrag=null; if(r.w>.003&&r.h>.01) edRects.push(r); drawEd(); });
+$('edUndo').onclick=()=>{ edRects.pop(); drawEd(); };
+$('edReset').onclick=()=>{ edRects=[]; drawEd(); };
+$('edCancel').onclick=()=>{ $('ed').hidden=true; };
+$('edDone').onclick=()=>{ const c=caps[edIdx]; c.rects=edRects; refreshThumb(c); $('ed').hidden=true; renderList(); if(!$('vw').hidden) showV(vIdx); };
+$('edAll').onclick=()=>{
+  caps.forEach(c=>{ c.rects=edRects.map(r=>({...r})); refreshThumb(c); });
+  $('ed').hidden=true; renderList(); if(!$('vw').hidden) showV(vIdx); toast('모든 장('+caps.length+'장)에 같은 지우기를 적용했어요');
+};
+document.addEventListener('keydown',e=>{ if(!$('ed').hidden&&e.key==='Escape'){ e.stopImmediatePropagation(); $('ed').hidden=true; } },true);
+
+function processCap(srcC,rects,doTrim){
+  if(rects===undefined) rects=[];
+  if(doTrim===undefined) doTrim=$('optTrim').checked;
+  const w=srcC.width, h=srcC.height, o=document.createElement('canvas'); o.width=w; o.height=h;
+  const x=o.getContext('2d',{willReadFrequently:true}); x.drawImage(srcC,0,0);
+  const im=x.getImageData(0,0,w,h), d=im.data;
+  let mean=0; for(let i=0;i<d.length;i+=4) mean+=d[i]*.299+d[i+1]*.587+d[i+2]*.114; mean/=d.length/4;
+  const iv=$('optInv').value, inv = iv==='on' || (iv==='auto' && mean<115), clean=$('optClean').checked;
+  if(inv||clean){
+    for(let i=0;i<d.length;i+=4){
+      const R=d[i],G=d[i+1],B=d[i+2], mx=Math.max(R,G,B), mn=Math.min(R,G,B);
+      // 색이 들어간 부분(파란 재생 커서, 분홍 Next 박스 등)은 배경처럼 밝게 처리
+      let g = (clean && !inv && mx-mn>25) ? mx : R*.299+G*.587+B*.114;
+      if(inv) g=255-g;
+      // 흰 배경은 하얗게, 음표는 까맣게, 옅은 오선은 회색으로 남기는 곡선
+      if(clean){ const v=Math.min(1,Math.max(0,(g-40)/192)); g=v*v*255; }
+      d[i]=d[i+1]=d[i+2]=g;
+    }
+    x.putImageData(im,0,0);
+  }
+  if(rects.length){ x.fillStyle='#fff'; rects.forEach(r=>x.fillRect(r.x*w,r.y*h,r.w*w,r.h*h)); }
+  return doTrim ? trim(o,x) : o;
+}
+function trim(c,x){
+  const w=c.width, h=c.height, d=x.getImageData(0,0,w,h).data;
+  const dark=i=>d[i]*.299+d[i+1]*.587+d[i+2]*.114<170;
+  const rows=new Uint32Array(h), cols=new Uint32Array(w);
+  for(let y=0;y<h;y++) for(let xx=0;xx<w;xx++) if(dark((y*w+xx)*4)){ rows[y]++; cols[xx]++; }
+  // 좌우 끝의 세로 테두리선(높이 거의 전체를 차지하는 선)은 악보가 아니니 무시
+  for(let e=0;e<w*.04;e++){ if(cols[e]>h*.8) cols[e]=0; if(cols[w-1-e]>h*.8) cols[w-1-e]=0; }
+  // 위아래 끝의 가로 테두리선도 무시
+  for(let e=0;e<h*.08;e++){ if(rows[e]>w*.8) rows[e]=0; if(rows[h-1-e]>w*.8) rows[h-1-e]=0; }
+  const rmin=Math.max(2,w*.003), cmin=Math.max(1,h*.01);
+  let t=0,b=h-1,l=0,r=w-1;
+  while(t<h&&rows[t]<rmin) t++; while(b>t&&rows[b]<rmin) b--;
+  while(l<w&&cols[l]<cmin) l++; while(r>l&&cols[r]<cmin) r--;
+  if(t>=b||l>=r) return c;
+  const p=Math.round(Math.min(w,h)*.03);
+  t=Math.max(0,t-p); b=Math.min(h-1,b+p); l=Math.max(0,l-p); r=Math.min(w-1,r+p);
+  const o=document.createElement('canvas'); o.width=r-l+1; o.height=b-t+1;
+  const ox=o.getContext('2d'); ox.fillStyle='#fff'; ox.fillRect(0,0,o.width,o.height); ox.drawImage(c,l,t,o.width,o.height,0,0,o.width,o.height);
+  return o;
+}
+const PW=1588, PH=2246, M=100, FONT='system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+$('btnBuild').onclick=()=>{ if(!caps.length){ toast('캡처된 악보가 없어요'); return; } toast('악보를 만드는 중…'); setTimeout(build,20); };
+function build(){
+  let imgs=caps.map(c=>processCap(c.canvas,c.rects));
+  let dropped=0;
+  if($('optDedup').checked){
+    const d=dupMap();
+    imgs=imgs.filter((im,i)=>{ if(d[i]>=0){ dropped++; return false; } return true; });
+  }
+  const scale=+$('optScale').value/100, gap=+$('optGap').value*2;
+  const CW=(PW-2*M)*scale, bottom=PH-M-40, title=$('title').value.trim(), head=title?120:0;
+  const pages=[[]]; let y=M+head;
+  for(const im of imgs){
+    let w=CW, h=im.height*CW/im.width;
+    const maxH=bottom-M-(pages.length===1?head:0);
+    if(h>maxH){ w*=maxH/h; h=maxH; }
+    if(y+h>bottom && pages[pages.length-1].length){ pages.push([]); y=M; }
+    pages[pages.length-1].push({im,x:(PW-w)/2,y,w,h});
+    y+=h+gap;
+  }
+  $('pages').innerHTML=''; pageCanvases=[];
+  pages.forEach((items,pi)=>{
+    const c=document.createElement('canvas'); c.width=PW; c.height=PH;
+    const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,PW,PH); x.imageSmoothingQuality='high';
+    if(pi===0&&title){
+      x.fillStyle='#111'; x.font='700 52px '+FONT; x.textAlign='center'; x.fillText(title,PW/2,M+40,PW-2*M);
+      x.fillStyle='#777'; x.font='400 26px '+FONT; x.fillText('Drums',PW/2,M+84);
+    }
+    items.forEach(it=>x.drawImage(it.im,it.x,it.y,it.w,it.h));
+    x.fillStyle='#999'; x.font='400 24px '+FONT; x.textAlign='center'; x.fillText((pi+1)+' / '+pages.length,PW/2,PH-M/2);
+    $('pages').appendChild(c); pageCanvases.push(c);
+  });
+  $('btnPrint').disabled=$('btnPng').disabled=false;
+  toast(pages.length+'페이지 악보가 만들어졌어요'+(dropped?' (똑같은 줄 '+dropped+'개 뺌)':''));
+}
+$('btnPrint').onclick=()=>window.print();
+$('btnPng').onclick=()=>{
+  const base=($('title').value.trim()||'drum-sheet').replace(/[\\/:*?"<>|]/g,'_');
+  pageCanvases.forEach((c,i)=>setTimeout(()=>c.toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${base}_${i+1}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }),i*300));
+};
+/* ================= 프로젝트 저장 / 열기 ================= */
+const PJ_VER=1;
+let pjHandle=null, pjName='', dirty=false, loading=false;
+function markDirty(){ if(loading) return; dirty=true; updPj(); }
+function updPj(){
+  const el=$('projName');
+  el.textContent = pjName || ($('title').value.trim() ? $('title').value.trim() : '새 프로젝트');
+  el.classList.toggle('dirty', dirty && (caps.length>0 || !!pjName));
+}
+['title','ytUrl'].forEach(k=>$(k).addEventListener('input',markDirty));
+['optInv','optClean','optTrim','optScale','optGap','optDedup','sens','skipRep','repTh','cT','cB','cL','cR'].forEach(k=>$(k).addEventListener('change',markDirty));
+$('cReset').addEventListener('click',markDirty);
+pv.addEventListener('pointerup',markDirty);
+
+const SETTINGS=['optInv','optClean','optTrim','optScale','optGap','optDedup','sens','skipRep','repTh'];
+function readSettings(){ const o={}; SETTINGS.forEach(k=>{ const e=$(k); o[k]= e.type==='checkbox' ? e.checked : e.value; }); return o; }
+function writeSettings(o){ SETTINGS.forEach(k=>{ if(o&&k in o){ const e=$(k); if(e.type==='checkbox') e.checked=!!o[k]; else e.value=o[k]; } }); if($('repTh').selectedIndex<0) $('repTh').value='0.5'; $('sens').oninput(); }
+
+function makeProject(){
+  return {
+    app:'drum-sheet-capture', version:PJ_VER, savedAt:new Date().toISOString(),
+    title:$('title').value, youtube:$('ytUrl').value.trim(),
+    crop, settings:readSettings(),
+    captures:caps.map(c=>({t:c.t, rects:c.rects, image:c.canvas.toDataURL('image/png')}))
+  };
+}
+const safeName=n=>(n||'드럼악보').replace(/[\\/:*?"<>|]/g,'_').trim()||'드럼악보';
+async function saveProject(asNew){
+  if(!caps.length && !$('title').value.trim()){ toast('저장할 내용이 없어요'); return; }
+  toast('저장하는 중…');
+  await new Promise(r=>setTimeout(r,20));
+  const blob=new Blob([JSON.stringify(makeProject())],{type:'application/json'});
+  const suggested=safeName($('title').value.trim()||pjName)+'.drumsheet';
+  if(window.showSaveFilePicker){
+    try{
+      if(asNew||!pjHandle){
+        pjHandle=await showSaveFilePicker({suggestedName:suggested,types:[{description:'드럼 악보 프로젝트',accept:{'application/json':['.drumsheet']}}]});
+      }
+      const w=await pjHandle.createWritable(); await w.write(blob); await w.close();
+      pjName=pjHandle.name; dirty=false; updPj(); toast('저장했어요 · '+pjName); return;
+    }catch(e){ if(e.name==='AbortError') return; pjHandle=null; }
+  }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=suggested; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  pjName=suggested; dirty=false; updPj(); toast('다운로드 폴더에 저장했어요 · '+suggested);
+}
+function loadImg(src){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=src; }); }
+async function loadProject(text,name,handle){
+  let p;
+  try{ p=JSON.parse(text); }catch(e){ toast('프로젝트 파일을 읽을 수 없어요'); return; }
+  if(!p||p.app!=='drum-sheet-capture'||!Array.isArray(p.captures)){ toast('드럼 악보 캡처 프로젝트 파일이 아니에요'); return; }
+  toast('불러오는 중…');
+  loading=true;
+  try{
+    stopAuto();
+    const list=[];
+    for(const c of p.captures){
+      const im=await loadImg(c.image);
+      const cv=document.createElement('canvas'); cv.width=im.naturalWidth; cv.height=im.naturalHeight;
+      cv.getContext('2d').drawImage(im,0,0);
+      const cap={id:++seq,canvas:cv,t:c.t??null,rects:Array.isArray(c.rects)?c.rects:[],thumb:''};
+      refreshThumb(cap); list.push(cap);
+    }
+    caps=list; trash.length=0; updUndo(); lastSig=null; closeV();
+    $('title').value=p.title||''; $('ytUrl').value=p.youtube||'';
+    if(p.crop&&p.crop.w>0&&p.crop.h>0){ crop=p.crop; syncCrop(); saveCrop(); }
+    writeSettings(p.settings);
+    $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=true;
+    renderList();
+  }catch(e){ loading=false; toast('불러오기 실패: 이미지가 손상됐을 수 있어요'); return; }
+  loading=false;
+  pjHandle=handle||null; pjName=name||''; dirty=false; updPj();
+  toast(`불러왔어요 · 악보 ${caps.length}장`+(p.youtube?' · 영상은 “앱에서 재생”을 누르세요':''));
+}
+let discardArmed=0;
+function okToDiscard(){
+  if(!dirty||!caps.length) return true;
+  if(Date.now()-discardArmed<4000){ discardArmed=0; return true; }
+  discardArmed=Date.now(); toast('저장 안 된 작업이 있어요. 한 번 더 누르면 버리고 진행해요'); return false;
+}
+async function openProject(){
+  if(!okToDiscard()) return;
+  if(window.showOpenFilePicker){
+    try{
+      const [h]=await showOpenFilePicker({types:[{description:'드럼 악보 프로젝트',accept:{'application/json':['.drumsheet','.json']}}]});
+      const f=await h.getFile(); await loadProject(await f.text(),f.name,h); return;
+    }catch(e){ if(e.name==='AbortError') return; }
+  }
+  $('pjFile').click();
+}
+$('pjFile').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(f) await loadProject(await f.text(),f.name,null); };
+$('pjOpen').onclick=openProject;
+$('pjSave').onclick=()=>saveProject(false);
+$('pjSaveAs').onclick=()=>saveProject(true);
+$('pjNew').onclick=()=>{
+  if(!okToDiscard()) return;
+  loading=true;
+  stopAuto(); caps=[]; trash.length=0; updUndo(); lastSig=null; closeV();
+  $('title').value=''; $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=true;
+  renderList(); loading=false;
+  pjHandle=null; pjName=''; dirty=false; updPj(); toast('새 프로젝트를 시작했어요');
+};
+// 프로젝트 파일을 창에 끌어다 놓아도 열려요
+document.addEventListener('dragover',e=>{ if([...e.dataTransfer.items].some(i=>i.kind==='file')) e.preventDefault(); });
+document.addEventListener('drop',async e=>{
+  const f=e.dataTransfer.files[0]; if(!f) return;
+  if(/\.(drumsheet|json)$/i.test(f.name)){ e.preventDefault(); if(okToDiscard()) await loadProject(await f.text(),f.name,null); }
+});
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){ e.preventDefault(); saveProject(e.shiftKey); }
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){ e.preventDefault(); openProject(); }
+});
+window.addEventListener('beforeunload',e=>{ if(dirty&&caps.length){ e.preventDefault(); e.returnValue=''; } });
+dirty=false; updPj();
+
+/* ================= 설치형 앱(exe/app)으로 실행 중일 때 ================= */
+if(location.protocol.startsWith('http')){
+  fetch('/__ping',{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{
+    if(!t.startsWith('drum-sheet-capture app')) return;
+    const hb=()=>fetch('/__hb',{method:'POST'}).catch(()=>{});
+    hb(); setInterval(hb,20000);
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) hb(); });
+    $('appQuit').hidden=false;
+    let armed=0;
+    $('appQuit').onclick=()=>{
+      if(dirty&&caps.length&&Date.now()-armed>4000){ armed=Date.now(); toast('저장 안 된 작업이 있어요. 한 번 더 누르면 종료해요'); return; }
+      fetch('/__quit',{method:'POST'}).catch(()=>{});
+      dirty=false;
+      document.body.innerHTML='<div style="display:grid;place-items:center;min-height:100vh;font:18px system-ui;color:#444;text-align:center;padding:20px">드럼 악보 캡처를 종료했어요.<br>이 탭은 닫아도 돼요.</div>';
+    };
+  }).catch(()=>{});
+}
+
+}
+</script>
+</body>
+</html>
