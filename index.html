@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>드럼 악보 캡처</title>
+<title>유튜브 악보 캡처</title>
 <style>
 :root{--bg:#f6f5f1;--paper:#fff;--ink:#16161a;--mute:#6b6a66;--line:#dcdad3;--acc:#d7261e;--acc2:#1d4ed8}
 *{box-sizing:border-box;min-width:0}
@@ -96,8 +96,8 @@ details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
 <body>
 <header>
   <div>
-    <h1>드럼 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v1.6</span></h1>
-    <p>유튜브 드럼 커버를 앱에서 재생하면서 하단 악보만 모아 A4 악보로 만들어요.</p>
+    <h1>유튜브 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v1.7</span></h1>
+    <p>유튜브 영상을 앱에서 재생하면서 화면 속 악보만 모아 A4 악보로 만들어요.</p>
   </div>
   <div class="proj">
     <span id="projName" class="pname">새 프로젝트</span>
@@ -856,7 +856,6 @@ function build(){
     const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,PW,PH); x.imageSmoothingQuality='high';
     if(pi===0&&title){
       x.fillStyle='#111'; x.font='700 52px '+FONT; x.textAlign='center'; x.fillText(title,PW/2,M+40,PW-2*M);
-      x.fillStyle='#777'; x.font='400 26px '+FONT; x.fillText('Drums',PW/2,M+84);
     }
     items.forEach(it=>x.drawImage(it.im,it.x,it.y,it.w,it.h));
     x.fillStyle='#999'; x.font='400 24px '+FONT; x.textAlign='center'; x.fillText((pi+1)+' / '+pages.length,PW/2,PH-M/2);
@@ -896,7 +895,7 @@ function makeProject(){
     captures:caps.map(c=>({t:c.t, rects:c.rects, image:c.canvas.toDataURL('image/png')}))
   };
 }
-const safeName=n=>(n||'드럼악보').replace(/[\\/:*?"<>|]/g,'_').trim()||'드럼악보';
+const safeName=n=>(n||'악보').replace(/[\\/:*?"<>|]/g,'_').trim()||'악보';
 async function saveProject(asNew){
   if(!caps.length && !$('title').value.trim()){ toast('저장할 내용이 없어요'); return; }
   toast('저장하는 중…');
@@ -906,7 +905,7 @@ async function saveProject(asNew){
   if(window.showSaveFilePicker){
     try{
       if(asNew||!pjHandle){
-        pjHandle=await showSaveFilePicker({suggestedName:suggested,types:[{description:'드럼 악보 프로젝트',accept:{'application/json':['.drumsheet']}}]});
+        pjHandle=await showSaveFilePicker({suggestedName:suggested,types:[{description:'유튜브 악보 캡처 프로젝트',accept:{'application/json':['.drumsheet']}}]});
       }
       const w=await pjHandle.createWritable(); await w.write(blob); await w.close();
       pjName=pjHandle.name; dirty=false; updPj(); toast('저장했어요 · '+pjName); return;
@@ -920,7 +919,7 @@ function loadImg(src){ return new Promise((res,rej)=>{ const im=new Image(); im.
 async function loadProject(text,name,handle){
   let p;
   try{ p=JSON.parse(text); }catch(e){ toast('프로젝트 파일을 읽을 수 없어요'); return; }
-  if(!p||p.app!=='drum-sheet-capture'||!Array.isArray(p.captures)){ toast('드럼 악보 캡처 프로젝트 파일이 아니에요'); return; }
+  if(!p||p.app!=='drum-sheet-capture'||!Array.isArray(p.captures)){ toast('유튜브 악보 캡처 프로젝트 파일이 아니에요'); return; }
   toast('불러오는 중…');
   loading=true;
   try{
@@ -954,7 +953,7 @@ async function openProject(){
   if(!okToDiscard()) return;
   if(window.showOpenFilePicker){
     try{
-      const [h]=await showOpenFilePicker({types:[{description:'드럼 악보 프로젝트',accept:{'application/json':['.drumsheet','.json']}}]});
+      const [h]=await showOpenFilePicker({types:[{description:'유튜브 악보 캡처 프로젝트',accept:{'application/json':['.drumsheet','.json']}}]});
       const f=await h.getFile(); await loadProject(await f.text(),f.name,h); return;
     }catch(e){ if(e.name==='AbortError') return; }
   }
@@ -998,7 +997,7 @@ if(location.protocol.startsWith('http')){
       if(dirty&&caps.length&&Date.now()-armed>4000){ armed=Date.now(); toast('저장 안 된 작업이 있어요. 한 번 더 누르면 종료해요'); return; }
       fetch('/__quit',{method:'POST'}).catch(()=>{});
       dirty=false;
-      document.body.innerHTML='<div style="display:grid;place-items:center;min-height:100vh;font:18px system-ui;color:#444;text-align:center;padding:20px">드럼 악보 캡처를 종료했어요.<br>이 탭은 닫아도 돼요.</div>';
+      document.body.innerHTML='<div style="display:grid;place-items:center;min-height:100vh;font:18px system-ui;color:#444;text-align:center;padding:20px">유튜브 악보 캡처를 종료했어요.<br>이 탭은 닫아도 돼요.</div>';
     };
   }).catch(()=>{});
 }
