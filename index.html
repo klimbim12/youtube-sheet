@@ -96,7 +96,7 @@ details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
 <body>
 <header>
   <div>
-    <h1>유튜브 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v1.7</span></h1>
+    <h1>유튜브 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v1.8</span></h1>
     <p>유튜브 영상을 앱에서 재생하면서 화면 속 악보만 모아 A4 악보로 만들어요.</p>
   </div>
   <div class="proj">
@@ -232,6 +232,7 @@ details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
     <button class="pri" id="btnBuild">악보 만들기</button>
     <button id="btnPrint" disabled>인쇄 / PDF 저장</button>
     <button id="btnPng" disabled>페이지 PNG 저장</button>
+    <button id="btnSheetClear" disabled style="border-color:var(--acc);color:var(--acc)">악보 지우기</button>
   </div>
   <div id="pages"></div>
 </section>
@@ -861,10 +862,20 @@ function build(){
     x.fillStyle='#999'; x.font='400 24px '+FONT; x.textAlign='center'; x.fillText((pi+1)+' / '+pages.length,PW/2,PH-M/2);
     $('pages').appendChild(c); pageCanvases.push(c);
   });
-  $('btnPrint').disabled=$('btnPng').disabled=false;
+  $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=false;
   toast(pages.length+'페이지 악보가 만들어졌어요'+(dropped?' (똑같은 줄 '+dropped+'개 뺌)':''));
 }
 $('btnPrint').onclick=()=>window.print();
+// 만든 악보(4단계 결과)만 지워요 — 캡처한 장들은 그대로 남아서 다시 만들 수 있어요
+let sheetClearArmed=0;
+$('btnSheetClear').onclick=()=>{
+  if(!pageCanvases.length) return;
+  if(Date.now()-sheetClearArmed>3000){ sheetClearArmed=Date.now(); toast('한 번 더 누르면 만든 악보를 지워요 (캡처한 장은 그대로예요)'); return; }
+  sheetClearArmed=0;
+  $('pages').innerHTML=''; pageCanvases=[];
+  $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true;
+  toast('만든 악보를 지웠어요 · “악보 만들기”로 다시 만들 수 있어요');
+};
 $('btnPng').onclick=()=>{
   const base=($('title').value.trim()||'drum-sheet').replace(/[\\/:*?"<>|]/g,'_');
   pageCanvases.forEach((c,i)=>setTimeout(()=>c.toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`${base}_${i+1}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); }),i*300));
@@ -936,7 +947,7 @@ async function loadProject(text,name,handle){
     $('title').value=p.title||''; $('ytUrl').value=p.youtube||'';
     if(p.crop&&p.crop.w>0&&p.crop.h>0){ crop=p.crop; syncCrop(); saveCrop(); }
     writeSettings(p.settings);
-    $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=true;
+    $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true;
     renderList();
   }catch(e){ loading=false; toast('불러오기 실패: 이미지가 손상됐을 수 있어요'); return; }
   loading=false;
@@ -967,7 +978,7 @@ $('pjNew').onclick=()=>{
   if(!okToDiscard()) return;
   loading=true;
   stopAuto(); caps=[]; trash.length=0; updUndo(); lastSig=null; closeV();
-  $('title').value=''; $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=true;
+  $('title').value=''; $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true;
   renderList(); loading=false;
   pjHandle=null; pjName=''; dirty=false; updPj(); toast('새 프로젝트를 시작했어요');
 };
