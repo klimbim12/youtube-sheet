@@ -77,7 +77,14 @@ details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
 .cap button{min-height:34px;padding:0 9px;font-size:14px;border-color:var(--line)}
 .empty{color:var(--mute);font-size:15px;padding:18px;text-align:center;border:1px dashed var(--line);border-radius:8px}
 #pages{display:flex;flex-direction:column;align-items:center;gap:18px;margin-top:16px}
-#pages canvas{width:min(100%,794px);height:auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.15)}
+#pages .pg{position:relative;width:min(100%,794px);box-shadow:0 2px 14px rgba(0,0,0,.15);background:#fff}
+#pages canvas{display:block;width:100%;height:auto;background:#fff}
+#pages .ln{position:absolute;border:2px solid transparent;border-radius:4px;transition:border-color .12s,background .12s}
+#pages .ln:hover,#pages .ln:focus-within{border-color:rgba(215,38,30,.7);background:rgba(215,38,30,.06)}
+#pages .ln button{position:absolute;right:-4px;top:-14px;min-height:30px;padding:0 10px;font-size:13px;background:var(--acc);border-color:var(--acc);color:#fff;opacity:0;transition:opacity .12s}
+#pages .ln:hover button,#pages .ln button:focus-visible{opacity:1}
+@media(hover:none){#pages .ln button{opacity:.9}}
+.sheetHint{font-size:14px;color:var(--mute);margin:10px 0 0}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;z-index:20}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -88,15 +95,17 @@ details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
   .layout{display:block;padding:0;max-width:none}
   #outCard{border:0;padding:0;margin:0}
   #pages{gap:0;margin:0}
-  #pages canvas{width:210mm;height:296mm;box-shadow:none;break-after:page;page-break-after:always}
-  #pages canvas:last-child{break-after:auto;page-break-after:auto}
+  #pages .pg{width:210mm;box-shadow:none;break-after:page;page-break-after:always}
+  #pages .pg:last-child{break-after:auto;page-break-after:auto}
+  #pages canvas{width:210mm;height:296mm}
+  #pages .ln{display:none!important}
 }
 </style>
 </head>
 <body>
 <header>
   <div>
-    <h1>유튜브 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v1.8</span></h1>
+    <h1>유튜브 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v1.9</span></h1>
     <p>유튜브 영상을 앱에서 재생하면서 화면 속 악보만 모아 A4 악보로 만들어요.</p>
   </div>
   <div class="proj">
@@ -233,7 +242,9 @@ details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
     <button id="btnPrint" disabled>인쇄 / PDF 저장</button>
     <button id="btnPng" disabled>페이지 PNG 저장</button>
     <button id="btnSheetClear" disabled style="border-color:var(--acc);color:var(--acc)">악보 지우기</button>
+    <button id="btnSheetUndo" disabled>↶ 지운 줄 되돌리기</button>
   </div>
+  <p class="sheetHint" id="sheetHint" hidden>필요 없는 줄에 마우스를 올리고 <b>✕ 이 줄 지우기</b>를 누르면 그 줄을 빼고 바로 다시 정리돼요. 잘못 지웠으면 <b>↶ 지운 줄 되돌리기</b>를 누르세요.</p>
   <div id="pages"></div>
 </section>
 </main>
@@ -669,7 +680,12 @@ function dupMap(){
 }
 ['optInv','optClean','optTrim'].forEach(k=>$(k).addEventListener('change',()=>{ caps.forEach(c=>c.sig=null); renderList(); }));
 $('optDedup').addEventListener('change',()=>renderList());
-function refreshThumb(c){ c.sig=null; c.rsig=null; c.thumb = smallJpeg(c.rects.length ? processCap(c.canvas,c.rects,false) : c.canvas); }
+function procCached(c){
+  const k=[$('optInv').value,$('optClean').checked,$('optTrim').checked].join('|');
+  if(!c.proc||c.pk!==k){ c.proc=processCap(c.canvas,c.rects); c.pk=k; }
+  return c.proc;
+}
+function refreshThumb(c){ c.sig=null; c.rsig=null; c.proc=null; c.thumb = smallJpeg(c.rects.length ? processCap(c.canvas,c.rects,false) : c.canvas); }
 function renderList(){
   markDirty();
   $('capCount').textContent = caps.length ? caps.length+'장' : '';
@@ -699,17 +715,19 @@ $('vwPrev').onclick=()=>showV(vIdx-1);
 $('vwNext').onclick=()=>showV(vIdx+1);
 /* 삭제 기록 (되돌리기용) */
 const trash=[];
-function updUndo(){ const n=trash.length; $('vwUndo').disabled=$('btnUndo').disabled=!n; $('btnUndo').textContent=n?`↶ 삭제 되돌리기 (${n})`:'↶ 삭제 되돌리기'; }
+function updUndo(){ const n=trash.length; $('vwUndo').disabled=$('btnUndo').disabled=!n; $('btnSheetUndo').disabled=!n||!pageCanvases.length; $('btnUndo').textContent=n?`↶ 삭제 되돌리기 (${n})`:'↶ 삭제 되돌리기'; }
 function delCaps(idxs){
   const items=idxs.slice().sort((a,b)=>a-b).map(i=>({i,c:caps[i]}));
   for(let k=items.length-1;k>=0;k--) caps.splice(items[k].i,1);
   trash.push(items); if(trash.length>50) trash.shift();
   lastSig=null; renderList(); updUndo();
+  if(pageCanvases.length) rebuildSheet();
 }
 function undoDel(){
   const items=trash.pop(); if(!items){ toast('되돌릴 삭제가 없어요'); return -1; }
   items.forEach(({i,c})=>caps.splice(Math.min(i,caps.length),0,c));
   renderList(); updUndo();
+  if(pageCanvases.length) rebuildSheet();
   toast(items.length>1?items.length+'장을 되살렸어요':'#'+(items[0].i+1)+'을 되살렸어요');
   return items[0].i;
 }
@@ -833,22 +851,26 @@ function trim(c,x){
 }
 const PW=1588, PH=2246, M=100, FONT='system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif';
 $('btnBuild').onclick=()=>{ if(!caps.length){ toast('캡처된 악보가 없어요'); return; } toast('악보를 만드는 중…'); setTimeout(build,20); };
-function build(){
-  let imgs=caps.map(c=>processCap(c.canvas,c.rects));
+function rebuildSheet(){
+  if(!caps.length){ $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true; $('sheetHint').hidden=true; updUndo(); return; }
+  const y=window.scrollY; build(true); window.scrollTo(0,y);
+}
+function build(quiet){
+  let imgs=caps.map((c,i)=>({im:procCached(c),ci:i}));
   let dropped=0;
   if($('optDedup').checked){
     const d=dupMap();
-    imgs=imgs.filter((im,i)=>{ if(d[i]>=0){ dropped++; return false; } return true; });
+    imgs=imgs.filter((o,i)=>{ if(d[i]>=0){ dropped++; return false; } return true; });
   }
   const scale=+$('optScale').value/100, gap=+$('optGap').value*2;
   const CW=(PW-2*M)*scale, bottom=PH-M-40, title=$('title').value.trim(), head=title?120:0;
   const pages=[[]]; let y=M+head;
-  for(const im of imgs){
+  for(const {im,ci} of imgs){
     let w=CW, h=im.height*CW/im.width;
     const maxH=bottom-M-(pages.length===1?head:0);
     if(h>maxH){ w*=maxH/h; h=maxH; }
     if(y+h>bottom && pages[pages.length-1].length){ pages.push([]); y=M; }
-    pages[pages.length-1].push({im,x:(PW-w)/2,y,w,h});
+    pages[pages.length-1].push({im,ci,x:(PW-w)/2,y,w,h});
     y+=h+gap;
   }
   $('pages').innerHTML=''; pageCanvases=[];
@@ -860,12 +882,26 @@ function build(){
     }
     items.forEach(it=>x.drawImage(it.im,it.x,it.y,it.w,it.h));
     x.fillStyle='#999'; x.font='400 24px '+FONT; x.textAlign='center'; x.fillText((pi+1)+' / '+pages.length,PW/2,PH-M/2);
-    $('pages').appendChild(c); pageCanvases.push(c);
+    const pg=document.createElement('div'); pg.className='pg'; pg.appendChild(c);
+    // 줄마다 지우기 버튼
+    pg.insertAdjacentHTML('beforeend',items.map(it=>{
+      const pad=8;
+      return `<div class="ln" style="left:${(it.x-pad)/PW*100}%;top:${(it.y-pad)/PH*100}%;width:${(it.w+2*pad)/PW*100}%;height:${(it.h+2*pad)/PH*100}%"><button data-ci="${it.ci}" aria-label="#${it.ci+1} 줄 지우기">✕ 이 줄 지우기</button></div>`;
+    }).join(''));
+    $('pages').appendChild(pg); pageCanvases.push(c);
   });
   $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=false;
-  toast(pages.length+'페이지 악보가 만들어졌어요'+(dropped?' (똑같은 줄 '+dropped+'개 뺌)':''));
+  $('sheetHint').hidden=false; updUndo();
+  if(!quiet) toast(pages.length+'페이지 악보가 만들어졌어요'+(dropped?' (똑같은 줄 '+dropped+'개 뺌)':''));
 }
 $('btnPrint').onclick=()=>window.print();
+$('pages').addEventListener('click',e=>{
+  const b=e.target.closest('.ln button'); if(!b) return;
+  const ci=+b.dataset.ci; if(!(ci>=0&&ci<caps.length)) return;
+  delCaps([ci]);
+  toast('그 줄을 지웠어요 · ↶ 지운 줄 되돌리기로 살릴 수 있어요');
+});
+$('btnSheetUndo').onclick=()=>undoDel();
 // 만든 악보(4단계 결과)만 지워요 — 캡처한 장들은 그대로 남아서 다시 만들 수 있어요
 let sheetClearArmed=0;
 $('btnSheetClear').onclick=()=>{
@@ -873,7 +909,7 @@ $('btnSheetClear').onclick=()=>{
   if(Date.now()-sheetClearArmed>3000){ sheetClearArmed=Date.now(); toast('한 번 더 누르면 만든 악보를 지워요 (캡처한 장은 그대로예요)'); return; }
   sheetClearArmed=0;
   $('pages').innerHTML=''; pageCanvases=[];
-  $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true;
+  $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true; $('sheetHint').hidden=true; updUndo();
   toast('만든 악보를 지웠어요 · “악보 만들기”로 다시 만들 수 있어요');
 };
 $('btnPng').onclick=()=>{
@@ -947,7 +983,7 @@ async function loadProject(text,name,handle){
     $('title').value=p.title||''; $('ytUrl').value=p.youtube||'';
     if(p.crop&&p.crop.w>0&&p.crop.h>0){ crop=p.crop; syncCrop(); saveCrop(); }
     writeSettings(p.settings);
-    $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true;
+    $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true; $('sheetHint').hidden=true;
     renderList();
   }catch(e){ loading=false; toast('불러오기 실패: 이미지가 손상됐을 수 있어요'); return; }
   loading=false;
@@ -978,7 +1014,7 @@ $('pjNew').onclick=()=>{
   if(!okToDiscard()) return;
   loading=true;
   stopAuto(); caps=[]; trash.length=0; updUndo(); lastSig=null; closeV();
-  $('title').value=''; $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true;
+  $('title').value=''; $('pages').innerHTML=''; pageCanvases=[]; $('btnPrint').disabled=$('btnPng').disabled=$('btnSheetClear').disabled=true; $('sheetHint').hidden=true;
   renderList(); loading=false;
   pjHandle=null; pjName=''; dirty=false; updPj(); toast('새 프로젝트를 시작했어요');
 };
