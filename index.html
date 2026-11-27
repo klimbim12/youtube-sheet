@@ -106,7 +106,7 @@ details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
 <body>
 <header>
   <div>
-    <h1>유튜브 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v2.0</span></h1>
+    <h1>유튜브 악보 캡처 <span style="font-size:13px;font-weight:400;color:#9a9994;vertical-align:middle">v2.1</span></h1>
     <p>유튜브 영상을 앱에서 재생하면서 화면 속 악보만 모아 A4 악보로 만들어요.</p>
   </div>
   <div class="proj">
@@ -239,6 +239,16 @@ details code{background:#eee;padding:1px 5px;border-radius:4px;color:var(--ink)}
       <input type="range" id="optGap" min="0" max="120" step="2" value="40" aria-label="줄 간격">
       <span style="font-size:13px;color:var(--mute)">넓게</span>
       <output id="optGapV" style="min-width:2.5em;font-variant-numeric:tabular-nums;font-size:14px"></output>
+    </label>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <label class="opt gapCtl">위 여백
+      <input type="range" id="optTop" min="3" max="50" step="1" value="13" aria-label="위 여백(mm)">
+      <output id="optTopV" style="min-width:3.5em;font-variant-numeric:tabular-nums;font-size:14px"></output>
+    </label>
+    <label class="opt gapCtl">아래 여백
+      <input type="range" id="optBot" min="5" max="50" step="1" value="19" aria-label="아래 여백(mm)">
+      <output id="optBotV" style="min-width:3.5em;font-variant-numeric:tabular-nums;font-size:14px"></output>
     </label>
   </div>
   <div class="row" style="margin-top:14px">
@@ -867,13 +877,14 @@ function build(quiet){
     imgs=imgs.filter((o,i)=>{ if(d[i]>=0){ dropped++; return false; } return true; });
   }
   const scale=+$('optScale').value/100, gap=+$('optGap').value*2;
-  const CW=(PW-2*M)*scale, bottom=PH-M-40, title=$('title').value.trim(), head=title?120:0;
-  const pages=[[]]; let y=M+head;
+  const MM=PH/297, T=Math.round(+$('optTop').value*MM), B=Math.round(+$('optBot').value*MM);
+  const CW=(PW-2*M)*scale, bottom=PH-B, title=$('title').value.trim(), head=title?120:0;
+  const pages=[[]]; let y=T+head;
   for(const {im,ci} of imgs){
     let w=CW, h=im.height*CW/im.width;
-    const maxH=bottom-M-(pages.length===1?head:0);
+    const maxH=bottom-T-(pages.length===1?head:0);
     if(h>maxH){ w*=maxH/h; h=maxH; }
-    if(y+h>bottom && pages[pages.length-1].length){ pages.push([]); y=M; }
+    if(y+h>bottom && pages[pages.length-1].length){ pages.push([]); y=T; }
     pages[pages.length-1].push({im,ci,x:(PW-w)/2,y,w,h});
     y+=h+gap;
   }
@@ -882,10 +893,10 @@ function build(quiet){
     const c=document.createElement('canvas'); c.width=PW; c.height=PH;
     const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,PW,PH); x.imageSmoothingQuality='high';
     if(pi===0&&title){
-      x.fillStyle='#111'; x.font='700 52px '+FONT; x.textAlign='center'; x.fillText(title,PW/2,M+40,PW-2*M);
+      x.fillStyle='#111'; x.font='700 52px '+FONT; x.textAlign='center'; x.fillText(title,PW/2,T+40,PW-2*M);
     }
     items.forEach(it=>x.drawImage(it.im,it.x,it.y,it.w,it.h));
-    x.fillStyle='#999'; x.font='400 24px '+FONT; x.textAlign='center'; x.fillText((pi+1)+' / '+pages.length,PW/2,PH-M/2);
+    x.fillStyle='#999'; x.font='400 24px '+FONT; x.textAlign='center'; x.fillText((pi+1)+' / '+pages.length,PW/2,PH-Math.max(18,Math.min(B/2,60)));
     const pg=document.createElement('div'); pg.className='pg'; pg.appendChild(c);
     // 줄마다 지우기 버튼
     pg.insertAdjacentHTML('beforeend',items.map(it=>{
@@ -911,6 +922,9 @@ let liveT=null;
 const liveRebuild=()=>{ clearTimeout(liveT); liveT=setTimeout(()=>{ if(pageCanvases.length) rebuildSheet(); },120); };
 const gapLabel=()=>{ $('optGapV').textContent=$('optGap').value; };
 $('optGap').addEventListener('input',()=>{ gapLabel(); liveRebuild(); });
+const marginLabel=()=>{ $('optTopV').textContent=$('optTop').value+'mm'; $('optBotV').textContent=$('optBot').value+'mm'; };
+['optTop','optBot'].forEach(k=>$(k).addEventListener('input',()=>{ marginLabel(); liveRebuild(); }));
+marginLabel();
 $('optScale').addEventListener('change',liveRebuild);
 gapLabel();
 // 만든 악보(4단계 결과)만 지워요 — 캡처한 장들은 그대로 남아서 다시 만들 수 있어요
@@ -937,13 +951,13 @@ function updPj(){
   el.classList.toggle('dirty', dirty && (caps.length>0 || !!pjName));
 }
 ['title','ytUrl'].forEach(k=>$(k).addEventListener('input',markDirty));
-['optInv','optClean','optTrim','optScale','optGap','optDedup','sens','skipRep','repTh','cT','cB','cL','cR'].forEach(k=>$(k).addEventListener('change',markDirty));
+['optInv','optClean','optTrim','optScale','optGap','optTop','optBot','optDedup','sens','skipRep','repTh','cT','cB','cL','cR'].forEach(k=>$(k).addEventListener('change',markDirty));
 $('cReset').addEventListener('click',markDirty);
 pv.addEventListener('pointerup',markDirty);
 
-const SETTINGS=['optInv','optClean','optTrim','optScale','optGap','optDedup','sens','skipRep','repTh'];
+const SETTINGS=['optInv','optClean','optTrim','optScale','optGap','optTop','optBot','optDedup','sens','skipRep','repTh'];
 function readSettings(){ const o={}; SETTINGS.forEach(k=>{ const e=$(k); o[k]= e.type==='checkbox' ? e.checked : e.value; }); return o; }
-function writeSettings(o){ SETTINGS.forEach(k=>{ if(o&&k in o){ const e=$(k); if(e.type==='checkbox') e.checked=!!o[k]; else e.value=o[k]; } }); if($('repTh').selectedIndex<0) $('repTh').value='0.5'; $('optGapV').textContent=$('optGap').value; $('sens').oninput(); }
+function writeSettings(o){ SETTINGS.forEach(k=>{ if(o&&k in o){ const e=$(k); if(e.type==='checkbox') e.checked=!!o[k]; else e.value=o[k]; } }); if($('repTh').selectedIndex<0) $('repTh').value='0.5'; $('optGapV').textContent=$('optGap').value; $('optTopV').textContent=$('optTop').value+'mm'; $('optBotV').textContent=$('optBot').value+'mm'; $('sens').oninput(); }
 
 function makeProject(){
   return {
